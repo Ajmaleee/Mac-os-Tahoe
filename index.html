@@ -14,6 +14,7 @@ html,body{width:100%;height:100%;overflow:hidden}
   --dock-height:70px;
   --blur:blur(40px);
   --animation:cubic-bezier(.22,1,.36,1);
+  --dock-max-scale:2.15;
 }
 
 /* SEA ONLY BACKGROUND */
@@ -39,19 +40,7 @@ body{
   position:absolute;top:28px;left:0;
   background:rgba(255,255,255,.85);
   backdrop-filter:blur(20px);
-  border-radius:8px;
-  padding:6px 0;
-  display:none;min-width:140px;
-  box-shadow:0 20px 40px rgba(0,0,0,.2)
-}
-.dropdown div{padding:6px 14px;cursor:pointer}
-.dropdown div:hover{background:rgba(0,0,0,.08)}
-.menu-item:hover .dropdown{display:block}
-
-/* ===== WINDOWS ===== */
-.window{
-  position:absolute;width:760px;height:500px;
-  background:rgba(255,255,255,.78);
+@@ -55,128 +56,156 @@ body{
   backdrop-filter:var(--blur);
   border-radius:16px;
   box-shadow:0 40px 80px rgba(0,0,0,.45);
@@ -79,10 +68,15 @@ body{
 }
 .dock-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--animation)}
 .dock-item:hover{transform:translateY(-6px) scale(1.08)}
+.dock-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;--scale:1;transform:translateY(calc((var(--scale) - 1) * -10px)) scale(var(--scale));transition:transform .15s var(--animation)}
 .dock-item.running::after{
   content:'';position:absolute;bottom:4px;width:6px;height:6px;border-radius:50%;background:#000;opacity:.6
 }
 .dock-item img{width:38px;height:38px;pointer-events:none}
+
+.welcome-card{max-width:580px;background:rgba(255,255,255,.7);border-radius:20px;padding:22px;box-shadow:0 18px 40px rgba(0,0,0,.15)}
+.welcome-grid{margin-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.welcome-pill{padding:14px;border-radius:14px;background:rgba(255,255,255,.8);font-weight:500}
 
 /* ===== MISSION CONTROL ===== */
 #mission{
@@ -130,6 +124,10 @@ class WindowManager{
 const WM=new WindowManager()
 
 /* ================= APPS ================= */
+function createIconData(label,bg){
+ return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='${bg[0]}'/><stop offset='1' stop-color='${bg[1]}'/></linearGradient></defs><rect x='8' y='8' width='80' height='80' rx='20' fill='url(#g)'/><text x='48' y='61' text-anchor='middle' font-size='43'>${label}</text></svg>`)}`
+}
+
 const apps=[
  {name:'Finder',icon:'https://img.icons8.com/color/96/finder.png'},
  {name:'Terminal',icon:'https://img.icons8.com/color/96/console.png'},
@@ -140,6 +138,15 @@ const apps=[
  {name:'Music',icon:'https://img.icons8.com/color/96/apple-music.png'},
  {name:'Photos',icon:'https://img.icons8.com/color/96/apple-photos.png'},
  {name:'Settings',icon:'https://img.icons8.com/color/96/settings--v1.png'}
+ {name:'Finder',symbol:'🧭',icon:createIconData('🧭',['#7fd3ff','#0c82ff'])},
+ {name:'Terminal',symbol:'⌨️',icon:createIconData('⌨️',['#575f6b','#0b0d13'])},
+ {name:'Notes',symbol:'📝',icon:createIconData('📝',['#ffe46c','#f8c72a'])},
+ {name:'Calculator',symbol:'🧮',icon:createIconData('🧮',['#ffa251','#ff5f57'])},
+ {name:'Safari',symbol:'🧭',icon:createIconData('🧭',['#7fe5ff','#00a0ff'])},
+ {name:'Mail',symbol:'✉️',icon:createIconData('✉️',['#77b8ff','#2f72ff'])},
+ {name:'Music',symbol:'🎵',icon:createIconData('🎵',['#ff8cc6','#f4428f'])},
+ {name:'Photos',symbol:'🌸',icon:createIconData('🌸',['#ffbf75','#ff6075'])},
+ {name:'Settings',symbol:'⚙️',icon:createIconData('⚙️',['#cdd3dc','#8d95a3'])}
 ]
 
 const dock=document.getElementById('dock')
@@ -150,10 +157,31 @@ apps.forEach(app=>{
  item.className='dock-item'
  const img=document.createElement('img')
  img.src=app.icon
+ img.alt=app.name
+ img.addEventListener('error',()=>{img.src=createIconData(app.symbol,['#94a3b8','#64748b'])})
  item.appendChild(img)
  item.addEventListener('click',()=>openApp(app.name,item))
  dock.appendChild(item)
 })
+
+dock.addEventListener('mousemove',e=>{
+ document.querySelectorAll('.dock-item').forEach(item=>{
+  const rect=item.getBoundingClientRect()
+  const center=rect.left+rect.width/2
+  const distance=Math.abs(e.clientX-center)
+  const influence=Math.max(0,1-distance/120)
+  const scale=(1+(varDockMaxScale()-1)*Math.pow(influence,1.35)).toFixed(3)
+  item.style.setProperty('--scale',scale)
+ })
+})
+
+dock.addEventListener('mouseleave',()=>{
+ document.querySelectorAll('.dock-item').forEach(item=>item.style.setProperty('--scale','1'))
+})
+
+function varDockMaxScale(){
+ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock-max-scale'))||2
+}
 
 /* ================= WINDOW CREATION ================= */
 function openApp(name,dockItem){
@@ -180,66 +208,7 @@ function openApp(name,dockItem){
 
  const content=document.createElement('div')
  content.className='window-content'
- content.innerHTML=generateAppUI(name)
-
- win.append(bar,content)
- desktop.appendChild(win)
-
- makeDraggable(win,bar)
- win.addEventListener('mousedown',()=>WM.focus(win))
-
- requestAnimationFrame(()=>win.classList.add('open'))
- document.getElementById('activeApp').innerText=name
- injectMenu(name)
-}
-
-function createControl(type,action){
- const btn=document.createElement('div')
- btn.className='control '+type
- btn.addEventListener('click',e=>{e.stopPropagation();action()})
- return btn
-}
-
-function closeWindow(win,dockItem){
- win.classList.add('closing')
- setTimeout(()=>{
-  win.remove()
-  if(dockItem)dockItem.classList.remove('running')
- },200)
-}
-
-/* ================= MINIMIZE ANIMATION ================= */
-function minimizeBezier(win,dockItem){
- if(!dockItem)return
- const rect=win.getBoundingClientRect()
- const dockRect=dockItem.getBoundingClientRect()
-
- const clone=win.cloneNode(true)
- clone.style.position='absolute'
- clone.style.left=rect.left+'px'
- clone.style.top=rect.top+'px'
- clone.style.width=rect.width+'px'
- clone.style.height=rect.height+'px'
- clone.style.margin=0
- clone.style.transition='all .4s cubic-bezier(.22,1,.36,1)'
- clone.style.zIndex=99999
- document.body.appendChild(clone)
-
- win.remove()
-
- requestAnimationFrame(()=>{
-  clone.style.left=dockRect.left+'px'
-  clone.style.top=dockRect.top+'px'
-  clone.style.width='40px'
-  clone.style.height='40px'
-  clone.style.opacity='0'
- })
-
- setTimeout(()=>clone.remove(),400)
-}
-
-/* ================= DRAGGING ================= */
-function makeDraggable(win,handle){
+@@ -243,53 +272,59 @@ function makeDraggable(win,handle){
  let ox=0,oy=0,drag=false
 
  handle.addEventListener('mousedown',e=>{
@@ -265,6 +234,7 @@ function injectMenu(app){
 
 /* ================= APP UI ================= */
 function generateAppUI(name){
+ if(name==='Finder')return `<div class="welcome-card"><h2>Welcome to macOS Tahoe</h2><p style="margin-top:8px;line-height:1.5">This environment now boots with local-first app icons, spring-style dock magnification physics, Mission Control previews, and a first-run welcome workspace inspired by macOS behavior.</p><div class="welcome-grid"><div class="welcome-pill">✨ Real-time dock physics</div><div class="welcome-pill">🧱 Fluid layered windows</div><div class="welcome-pill">🚀 Fast local icons</div><div class="welcome-pill">🗂️ Welcome workflow</div></div></div>`
  if(name==='Safari')return `<h2>Safari</h2><input style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc" placeholder="Search or enter website name">`
  if(name==='Mail')return `<h2>Mail</h2><div style="padding:10px;background:#fff;border-radius:10px;box-shadow:0 10px 20px rgba(0,0,0,.1)">Inbox (0)</div>`
  if(name==='Music')return `<h2>Music</h2><div style="height:200px;background:linear-gradient(135deg,#ff7eb3,#ff758c);border-radius:14px"></div>`
@@ -289,6 +259,11 @@ function toggleMission(){
 setInterval(()=>{
  document.getElementById('clock').innerText=new Date().toLocaleTimeString()
 },1000)
+
+window.addEventListener('load',()=>{
+ const finderDockItem=[...document.querySelectorAll('.dock-item')][0]
+ openApp('Finder',finderDockItem)
+})
 
 </script>
 </body>

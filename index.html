@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>macOS Tahoe Web Architecture</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;-webkit-user-select:none;user-select:none}
 html,body{width:100%;height:100%;overflow:hidden}
+
 :root{
   --dock-height:70px;
   --blur:blur(40px);
@@ -19,38 +21,54 @@ html,body{width:100%;height:100%;overflow:hidden}
 body{
   background:url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2200') center/cover no-repeat fixed;
 }
-body{background:linear-gradient(160deg,#5b7ca2,#1e2d44) center/cover no-repeat fixed;color:#111}
 
 #desktop{position:relative;width:100%;height:100%}
 
-/* Liquid glass shared */
-.liquid-glass{
-  background:linear-gradient(130deg,rgba(255,255,255,.45),rgba(255,255,255,.2));
-  border:1px solid rgba(255,255,255,.42);
-  box-shadow:inset 0 1px 1px rgba(255,255,255,.75),0 20px 40px rgba(0,0,0,.18);
-  backdrop-filter:var(--blur) saturate(1.3);
-}
-
-/* Top bar */
+/* ===== MENUBAR ===== */
 #menubar{
-  position:absolute;inset:10px 12px auto 12px;height:32px;padding:0 12px;
-  display:flex;align-items:center;justify-content:space-between;z-index:9999;border-radius:12px;
+  position:absolute;top:0;left:0;
+  width:100%;height:32px;
+  background:rgba(255,255,255,.35);
+  backdrop-filter:var(--blur);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;font-size:13px;z-index:9999
 }
-#menu-left,#menu-right{display:flex;align-items:center;gap:14px;font-size:13px}
-#menu-left span,#menu-right span{cursor:pointer;opacity:.95}
-#menu-left span:hover,#menu-right span:hover{opacity:1}
-#appMenu{font-weight:500;letter-spacing:.1px}
+#menu-left span{margin-right:18px;cursor:pointer}
+#menu-right{display:flex;gap:14px}
+.menu-item{position:relative}
+.dropdown{
+  position:absolute;top:28px;left:0;
+  background:rgba(255,255,255,.85);
+  backdrop-filter:blur(20px);
+  border-radius:8px;
+  padding:6px 0;
+  display:none;min-width:140px;
+  box-shadow:0 20px 40px rgba(0,0,0,.2)
+}
+.dropdown div{padding:6px 14px;cursor:pointer}
+.dropdown div:hover{background:rgba(0,0,0,.08)}
+.menu-item:hover .dropdown{display:block}
 
-/* windows */
-.window{position:absolute;width:900px;height:560px;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transform:scale(.93);opacity:0;transition:all .22s var(--anim)}
+/* ===== WINDOWS ===== */
+.window{
+  position:absolute;width:760px;height:500px;
+  background:rgba(255,255,255,.78);
+  backdrop-filter:var(--blur);
+  border-radius:16px;
+  box-shadow:0 40px 80px rgba(0,0,0,.45);
+  display:flex;flex-direction:column;overflow:hidden;
+  transform:scale(.92);opacity:0;
+  transition:all .25s var(--animation);
+}
 .window.open{transform:scale(1);opacity:1}
-.window.maximized{inset:42px 0 0 0 !important;width:auto !important;height:auto !important;border-radius:0}
-.titlebar{height:38px;display:flex;align-items:center;padding:0 12px;cursor:grab}
-.controls{display:flex;gap:8px;margin-right:10px}
+.window.closing{transform:scale(.85);opacity:0}
+.window.maximized{border-radius:0;width:100%!important;height:calc(100% - 32px)!important;left:0!important;top:32px!important}
+
+.titlebar{height:36px;display:flex;align-items:center;padding:0 12px;background:rgba(255,255,255,.6);cursor:grab}
+.controls{display:flex;gap:8px;margin-right:12px}
 .control{width:12px;height:12px;border-radius:50%;cursor:pointer}
 .close{background:#ff5f57}.min{background:#febc2e}.max{background:#28c840}
-.window-title{font-size:13px;font-weight:600;opacity:.8}
-.window-content{flex:1;padding:18px;overflow:auto;-webkit-user-select:text;user-select:text;background:rgba(255,255,255,.65)}
+.window-content{flex:1;padding:16px;overflow:auto;-webkit-user-select:text;user-select:text}
 
 /* ===== DOCK ===== */
 #dock{
@@ -71,62 +89,52 @@ body{background:linear-gradient(160deg,#5b7ca2,#1e2d44) center/cover no-repeat f
 .welcome-grid{margin-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .welcome-pill{padding:14px;border-radius:14px;background:rgba(255,255,255,.8);font-weight:500}
 
-/* dock */
-#dock{
-  position:absolute;left:50%;bottom:14px;transform:translateX(-50%);height:88px;padding:12px 18px;display:flex;align-items:flex-end;gap:8px;z-index:9998;border-radius:24px;
+/* ===== MISSION CONTROL ===== */
+#mission{
+  position:absolute;inset:0;background:rgba(0,0,0,.4);
+  backdrop-filter:blur(20px);
+  display:none;align-items:center;justify-content:center;flex-wrap:wrap;gap:40px;z-index:9998
 }
-.dock-item{position:relative;width:56px;height:56px;display:flex;align-items:flex-end;justify-content:center;transition:width .14s var(--anim),transform .14s var(--anim)}
-.dock-item-inner{width:56px;height:56px;border-radius:16px;overflow:hidden;box-shadow:0 8px 18px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.42);transform-origin:center bottom;transition:transform .14s var(--anim)}
-.dock-item img{width:100%;height:100%;display:block}
-.dock-item::after{content:attr(data-name);position:absolute;bottom:66px;left:50%;transform:translateX(-50%) translateY(4px);padding:4px 8px;border-radius:8px;font-size:11px;background:rgba(0,0,0,.65);color:#fff;opacity:0;pointer-events:none;transition:all .14s}
-.dock-item.hovered::after{opacity:1;transform:translateX(-50%) translateY(0)}
-.dock-item.running::before{content:'';position:absolute;bottom:-2px;width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,.8)}
+#mission.active{display:flex}
+.mini{width:320px;height:220px;background:rgba(255,255,255,.3);border-radius:14px;backdrop-filter:blur(20px)}
 
-/* mission */
-#mission{position:absolute;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(12px);display:none;z-index:9997;padding:70px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}
-#mission.active{display:grid}
-.mini{height:180px;border-radius:14px}
-
-input,button{font:inherit}
 </style>
 </head>
 <body>
+
 <div id="desktop"></div>
 <div id="mission"></div>
 
-<div id="menubar" class="liquid-glass">
+<div id="menubar">
   <div id="menu-left">
-    <span></span>
+    <span class="menu-item">
+      <div class="dropdown">
+        <div onclick="location.reload()">Restart</div>
+        <div onclick="alert('macOS Tahoe Web')">About</div>
+      </div>
+    </span>
     <span id="activeApp">Finder</span>
-    <span id="appMenu">File Edit View Go Window Help</span>
+    <span id="appMenu"></span>
   </div>
   <div id="menu-right">
-    <span id="missionBtn">Mission Control</span>
+    <span onclick="toggleMission()">Mission</span>
     <span id="clock"></span>
   </div>
 </div>
 
-<div id="desktop-icons"></div>
-<div id="dock" class="liquid-glass"></div>
+<div id="dock"></div>
 
 <script>
-class WindowManager{constructor(){this.z=2}focus(win){win.style.zIndex=this.z++}}
-const WM=new WindowManager()
-const desktop=document.getElementById('desktop')
-const dock=document.getElementById('dock')
-const desktopIcons=document.getElementById('desktop-icons')
 
-const menus={
-  Finder:'File Edit View Go Window Help',
-  Safari:'File Edit View History Bookmarks Develop Window Help',
-  Discord:'File Edit View Window Help',
-  Spotify:'Spotify File Edit View Playback Window Help',
-  Music:'File Edit Song Playback Controls Window Help',
-  Terminal:'Shell Edit View Window Help',
-  Notes:'File Edit View Note Format Window Help',
-  Mail:'File Edit View Mailbox Message Format Window Help'
+/* ================= SYSTEM CORE ================= */
+class WindowManager{
+ constructor(){this.z=1}
+ focus(win){win.style.zIndex=this.z++}
 }
 
+const WM=new WindowManager()
+
+/* ================= APPS ================= */
 const apps=[
  {name:'Finder',symbol:'🧭',colors:['#87d5ff','#2f7dff']},
  {name:'Terminal',symbol:'>_',colors:['#626d7c','#151922']},
@@ -191,144 +199,102 @@ function openApp(name,dockItem){
 
  if(dockItem)dockItem.classList.add('running')
 
-const fallbackIcon = (name)=>`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='#d7e3f7'/><stop offset='1' stop-color='#8ea4c9'/></linearGradient></defs><rect x='8' y='8' width='80' height='80' rx='18' fill='url(#g)'/><text x='48' y='56' text-anchor='middle' font-family='Inter' font-size='16' fill='#223'>${name.slice(0,1)}</text></svg>`)}`
+ const bar=document.createElement('div')
+ bar.className='titlebar'
 
-function setIconWithFallback(img,app){
-  const sources=[...(app.icons||[]), fallbackIcon(app.name)]
-  let i=0
-  const load=()=>{img.src=sources[i]}
-  img.onerror=()=>{i=Math.min(i+1,sources.length-1);load()}
-  load()
+ const controls=document.createElement('div')
+ controls.className='controls'
+
+ const close=createControl('close',()=>closeWindow(win,dockItem))
+ const min=createControl('min',()=>minimizeBezier(win,dockItem))
+ const max=createControl('max',()=>win.classList.toggle('maximized'))
+
+ controls.append(close,min,max)
+ bar.appendChild(controls)
+
+ const content=document.createElement('div')
+ content.className='window-content'
+ content.innerHTML=generateAppUI(name)
+
+ win.append(bar,content)
+ desktop.appendChild(win)
+
+ makeDraggable(win,bar)
+ win.addEventListener('mousedown',()=>WM.focus(win))
+
+ requestAnimationFrame(()=>win.classList.add('open'))
+ document.getElementById('activeApp').innerText=name
+ injectMenu(name)
 }
 
-function applyTahoeBackground(){
-  const primary='https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2200'
-  const backup='https://images.unsplash.com/photo-1682686581223-689c34afb6ef?q=80&w=2300'
-  const test=new Image()
-  test.onload=()=>{document.body.style.background=`url('${primary}') center/cover no-repeat fixed`}
-  test.onerror=()=>{document.body.style.background=`url('${backup}') center/cover no-repeat fixed`}
-  test.src=primary
-}
-
-function createDock(){
-  apps.forEach((app,index)=>{
-    const item=document.createElement('div')
-    item.className='dock-item'
-    item.dataset.index=index
-    item.dataset.name=app.name
-    const inner=document.createElement('div')
-    inner.className='dock-item-inner'
-    const img=document.createElement('img')
-    img.alt=app.name
-    img.loading='eager'
-    setIconWithFallback(img,app)
-    inner.appendChild(img)
-    item.appendChild(inner)
-    item.addEventListener('click',()=>openApp(app.name,item))
-    item.addEventListener('mouseenter',()=>item.classList.add('hovered'))
-    item.addEventListener('mouseleave',()=>item.classList.remove('hovered'))
-    dock.appendChild(item)
-  })
-}
-
-function createDesktopIcons(){
-  desktopShortcuts.forEach(app=>{
-    const item=document.createElement('div')
-    item.className='desktop-item'
-    const img=document.createElement('img')
-    img.alt=app.name
-    setIconWithFallback(img,app)
-    const label=document.createElement('div')
-    label.textContent=app.name
-    item.append(img,label)
-    item.addEventListener('dblclick',()=>openApp(app.name,[...dock.children].find(el=>el.dataset.name===app.name)))
-    desktopIcons.appendChild(item)
-  })
-}
-
-function setMenu(name){
-  document.getElementById('activeApp').textContent=name
-  document.getElementById('appMenu').textContent=menus[name]||'File Edit View Window Help'
-}
-
-function openApp(name,dockItem){
-  const win=document.createElement('div')
-  win.className='window liquid-glass'
-  win.style.left=(130+Math.random()*250)+'px'
-  win.style.top=(84+Math.random()*120)+'px'
-  WM.focus(win)
-  if(dockItem)dockItem.classList.add('running')
-
-  const bar=document.createElement('div')
-  bar.className='titlebar liquid-glass'
-  const controls=document.createElement('div')
-  controls.className='controls'
-  controls.innerHTML='<div class="control close"></div><div class="control min"></div><div class="control max"></div>'
-  controls.children[0].onclick=(e)=>{e.stopPropagation();closeWindow(win,dockItem)}
-  controls.children[1].onclick=(e)=>{e.stopPropagation();minimizeWindow(win,dockItem)}
-  controls.children[2].onclick=(e)=>{e.stopPropagation();win.classList.toggle('maximized')}
-  const t=document.createElement('div');t.className='window-title';t.textContent=name
-  bar.append(controls,t)
-
-  const content=document.createElement('div')
-  content.className='window-content'
-  content.innerHTML=appUI(name)
-
-  win.append(bar,content)
-  desktop.appendChild(win)
-  makeDraggable(win,bar)
-  win.addEventListener('mousedown',()=>{WM.focus(win);setMenu(name)})
-  requestAnimationFrame(()=>win.classList.add('open'))
-  setMenu(name)
+function createControl(type,action){
+ const btn=document.createElement('div')
+ btn.className='control '+type
+ btn.addEventListener('click',e=>{e.stopPropagation();action()})
+ return btn
 }
 
 function closeWindow(win,dockItem){
-  win.style.opacity='0';win.style.transform='scale(.9)'
-  setTimeout(()=>{win.remove();if(dockItem)dockItem.classList.remove('running')},180)
+ win.classList.add('closing')
+ setTimeout(()=>{
+  win.remove()
+  if(dockItem)dockItem.classList.remove('running')
+ },200)
 }
 
-function minimizeWindow(win,dockItem){
-  if(!dockItem)return closeWindow(win,dockItem)
-  const r=win.getBoundingClientRect(),d=dockItem.getBoundingClientRect()
-  const c=win.cloneNode(true)
-  c.style.position='fixed';c.style.margin='0';c.style.left=r.left+'px';c.style.top=r.top+'px';c.style.width=r.width+'px';c.style.height=r.height+'px';c.style.transition='all .35s var(--anim)';c.style.zIndex=10000
-  document.body.appendChild(c);win.remove()
-  requestAnimationFrame(()=>{c.style.left=d.left+'px';c.style.top=d.top+'px';c.style.width='56px';c.style.height='56px';c.style.opacity='0'})
-  setTimeout(()=>c.remove(),360)
+/* ================= MINIMIZE ANIMATION ================= */
+function minimizeBezier(win,dockItem){
+ if(!dockItem)return
+ const rect=win.getBoundingClientRect()
+ const dockRect=dockItem.getBoundingClientRect()
+
+ const clone=win.cloneNode(true)
+ clone.style.position='absolute'
+ clone.style.left=rect.left+'px'
+ clone.style.top=rect.top+'px'
+ clone.style.width=rect.width+'px'
+ clone.style.height=rect.height+'px'
+ clone.style.margin=0
+ clone.style.transition='all .4s cubic-bezier(.22,1,.36,1)'
+ clone.style.zIndex=99999
+ document.body.appendChild(clone)
+
+ win.remove()
+
+ requestAnimationFrame(()=>{
+  clone.style.left=dockRect.left+'px'
+  clone.style.top=dockRect.top+'px'
+  clone.style.width='40px'
+  clone.style.height='40px'
+  clone.style.opacity='0'
+ })
+
+ setTimeout(()=>clone.remove(),400)
 }
 
+/* ================= DRAGGING ================= */
 function makeDraggable(win,handle){
-  let dragging=false,ox=0,oy=0
-  handle.addEventListener('mousedown',e=>{if(e.target.classList.contains('control'))return;dragging=true;ox=e.clientX-win.offsetLeft;oy=e.clientY-win.offsetTop})
-  document.addEventListener('mousemove',e=>{if(!dragging||win.classList.contains('maximized'))return;win.style.left=e.clientX-ox+'px';win.style.top=e.clientY-oy+'px'})
-  document.addEventListener('mouseup',()=>dragging=false)
+ let ox=0,oy=0,drag=false
+
+ handle.addEventListener('mousedown',e=>{
+  if(e.target.classList.contains('control'))return
+  drag=true
+  ox=e.clientX-win.offsetLeft
+  oy=e.clientY-win.offsetTop
+ })
+
+ document.addEventListener('mousemove',e=>{
+  if(!drag)return
+  win.style.left=e.clientX-ox+'px'
+  win.style.top=e.clientY-oy+'px'
+ })
+
+ document.addEventListener('mouseup',()=>drag=false)
 }
 
-function appUI(name){
-  if(name==='Finder')return `<h2>Welcome to macOS Tahoe</h2><p style="margin-top:8px;line-height:1.5">Liquid-glass shell enabled, responsive dock physics active, dynamic app menus running.</p>`
-  if(name==='Safari')return `<h2>Safari</h2><input style="width:100%;padding:10px;border-radius:10px;border:1px solid #c7ccd5" placeholder="Search or enter website name">`
-  if(name==='Music' || name==='Spotify')return `<h2>${name}</h2><div style="height:220px;border-radius:14px;background:linear-gradient(140deg,#fe7bbd,#5d66ff)"></div>`
-  if(name==='Discord')return `<h2>Discord</h2><div style="padding:12px;border-radius:12px;background:#5865f2;color:#fff;width:max-content">Server List</div>`
-  return `<h2>${name}</h2><p style="margin-top:8px">App simulation window.</p>`
-}
-
-function setupDockPhysics(){
-  dock.addEventListener('mousemove',e=>{
-    const items=[...dock.querySelectorAll('.dock-item')]
-    items.forEach(item=>{
-      const inner=item.querySelector('.dock-item-inner')
-      const rect=item.getBoundingClientRect()
-      const center=rect.left+rect.width/2
-      const dist=Math.abs(e.clientX-center)
-      const influence=Math.max(0,1-dist/130)
-      const scale=1+(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock-max-scale'))-1)*Math.pow(influence,1.5)
-      inner.style.transform=`scale(${scale.toFixed(3)})`
-      item.style.width=(56+Math.max(0,(scale-1)*42)).toFixed(1)+'px' // prevent overlap
-    })
-  })
-  dock.addEventListener('mouseleave',()=>{
-    dock.querySelectorAll('.dock-item').forEach(item=>{item.style.width='56px';item.querySelector('.dock-item-inner').style.transform='scale(1)'})
-  })
+/* ================= MENUS ================= */
+function injectMenu(app){
+ document.getElementById('appMenu').innerText='File  Edit  View  Window  Help'
 }
 
 /* ================= APP UI ================= */
@@ -342,20 +308,22 @@ function generateAppUI(name){
  return `<h2>${name}</h2>`
 }
 
+/* ================= MISSION CONTROL ================= */
 function toggleMission(){
-  const m=document.getElementById('mission')
-  m.classList.toggle('active')
-  m.innerHTML=''
-  if(!m.classList.contains('active')) return
-  document.querySelectorAll('.window').forEach(()=>{
-    const mini=document.createElement('div')
-    mini.className='mini liquid-glass'
-    m.appendChild(mini)
-  })
+ const mission=document.getElementById('mission')
+ mission.classList.toggle('active')
+ mission.innerHTML=''
+ document.querySelectorAll('.window').forEach(()=>{
+  const mini=document.createElement('div')
+  mini.className='mini'
+  mission.appendChild(mini)
+ })
 }
 
-setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),1000)
-document.getElementById('missionBtn').onclick=toggleMission
+/* ================= CLOCK ================= */
+setInterval(()=>{
+ document.getElementById('clock').innerText=new Date().toLocaleTimeString()
+},1000)
 
 window.addEventListener('load',()=>{
  const finderDockItem=[...document.querySelectorAll('.dock-item')][0]

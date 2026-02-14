@@ -1,270 +1,284 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>macOS Tahoe Web Architecture</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;-webkit-user-select:none;user-select:none}
-html,body{width:100%;height:100%;overflow:hidden}
-
-:root{
-  --dock-height:70px;
-  --blur:blur(40px);
-  --animation:cubic-bezier(.22,1,.36,1);
-  --dock-max-scale:2.15;
-}
-
-/* SEA ONLY BACKGROUND */
-body{
-  background:url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2200') center/cover no-repeat fixed;
-}
-
-#desktop{position:relative;width:100%;height:100%}
-
-/* ===== MENUBAR ===== */
-#menubar{
-  position:absolute;top:0;left:0;
-  width:100%;height:32px;
-  background:rgba(255,255,255,.35);
-  backdrop-filter:var(--blur);
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 16px;font-size:13px;z-index:9999
-}
-#menu-left span{margin-right:18px;cursor:pointer}
-#menu-right{display:flex;gap:14px}
-.menu-item{position:relative}
-.dropdown{
-  position:absolute;top:28px;left:0;
-  background:rgba(255,255,255,.85);
-  backdrop-filter:blur(20px);
-@@ -55,128 +56,156 @@ body{
-  backdrop-filter:var(--blur);
-  border-radius:16px;
-  box-shadow:0 40px 80px rgba(0,0,0,.45);
-  display:flex;flex-direction:column;overflow:hidden;
-  transform:scale(.92);opacity:0;
-  transition:all .25s var(--animation);
-}
-.window.open{transform:scale(1);opacity:1}
-.window.closing{transform:scale(.85);opacity:0}
-.window.maximized{border-radius:0;width:100%!important;height:calc(100% - 32px)!important;left:0!important;top:32px!important}
-
-.titlebar{height:36px;display:flex;align-items:center;padding:0 12px;background:rgba(255,255,255,.6);cursor:grab}
-.controls{display:flex;gap:8px;margin-right:12px}
-.control{width:12px;height:12px;border-radius:50%;cursor:pointer}
-.close{background:#ff5f57}.min{background:#febc2e}.max{background:#28c840}
-.window-content{flex:1;padding:16px;overflow:auto;-webkit-user-select:text;user-select:text}
-
-/* ===== DOCK ===== */
-#dock{
-  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
-  height:var(--dock-height);padding:10px 22px;
-  background:rgba(255,255,255,.35);
-  backdrop-filter:var(--blur);
-  border-radius:22px;display:flex;align-items:flex-end;gap:18px
-}
-.dock-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--animation)}
-.dock-item:hover{transform:translateY(-6px) scale(1.08)}
-.dock-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;--scale:1;transform:translateY(calc((var(--scale) - 1) * -10px)) scale(var(--scale));transition:transform .15s var(--animation)}
-.dock-item.running::after{
-  content:'';position:absolute;bottom:4px;width:6px;height:6px;border-radius:50%;background:#000;opacity:.6
-}
-.dock-item img{width:38px;height:38px;pointer-events:none}
-
-.welcome-card{max-width:580px;background:rgba(255,255,255,.7);border-radius:20px;padding:22px;box-shadow:0 18px 40px rgba(0,0,0,.15)}
-.welcome-grid{margin-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.welcome-pill{padding:14px;border-radius:14px;background:rgba(255,255,255,.8);font-weight:500}
-
-/* ===== MISSION CONTROL ===== */
-#mission{
-  position:absolute;inset:0;background:rgba(0,0,0,.4);
-  backdrop-filter:blur(20px);
-  display:none;align-items:center;justify-content:center;flex-wrap:wrap;gap:40px;z-index:9998
-}
-#mission.active{display:flex}
-.mini{width:320px;height:220px;background:rgba(255,255,255,.3);border-radius:14px;backdrop-filter:blur(20px)}
-
-</style>
-</head>
-<body>
-
-<div id="desktop"></div>
-<div id="mission"></div>
-
-<div id="menubar">
-  <div id="menu-left">
-    <span class="menu-item">
-      <div class="dropdown">
-        <div onclick="location.reload()">Restart</div>
-        <div onclick="alert('macOS Tahoe Web')">About</div>
-      </div>
-    </span>
-    <span id="activeApp">Finder</span>
-    <span id="appMenu"></span>
-  </div>
-  <div id="menu-right">
-    <span onclick="toggleMission()">Mission</span>
-    <span id="clock"></span>
-  </div>
-</div>
-
-<div id="dock"></div>
-
-<script>
-
-/* ================= SYSTEM CORE ================= */
-class WindowManager{
- constructor(){this.z=1}
- focus(win){win.style.zIndex=this.z++}
-}
-
-const WM=new WindowManager()
-
-/* ================= APPS ================= */
-function createIconData(label,bg){
- return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop stop-color='${bg[0]}'/><stop offset='1' stop-color='${bg[1]}'/></linearGradient></defs><rect x='8' y='8' width='80' height='80' rx='20' fill='url(#g)'/><text x='48' y='61' text-anchor='middle' font-size='43'>${label}</text></svg>`)}`
-}
-
-const apps=[
- {name:'Finder',icon:'https://img.icons8.com/color/96/finder.png'},
- {name:'Terminal',icon:'https://img.icons8.com/color/96/console.png'},
- {name:'Notes',icon:'https://img.icons8.com/color/96/apple-notes.png'},
- {name:'Calculator',icon:'https://img.icons8.com/color/96/calculator--v1.png'},
- {name:'Safari',icon:'https://img.icons8.com/color/96/safari--v1.png'},
- {name:'Mail',icon:'https://img.icons8.com/color/96/apple-mail.png'},
- {name:'Music',icon:'https://img.icons8.com/color/96/apple-music.png'},
- {name:'Photos',icon:'https://img.icons8.com/color/96/apple-photos.png'},
- {name:'Settings',icon:'https://img.icons8.com/color/96/settings--v1.png'}
- {name:'Finder',symbol:'🧭',icon:createIconData('🧭',['#7fd3ff','#0c82ff'])},
- {name:'Terminal',symbol:'⌨️',icon:createIconData('⌨️',['#575f6b','#0b0d13'])},
- {name:'Notes',symbol:'📝',icon:createIconData('📝',['#ffe46c','#f8c72a'])},
- {name:'Calculator',symbol:'🧮',icon:createIconData('🧮',['#ffa251','#ff5f57'])},
- {name:'Safari',symbol:'🧭',icon:createIconData('🧭',['#7fe5ff','#00a0ff'])},
- {name:'Mail',symbol:'✉️',icon:createIconData('✉️',['#77b8ff','#2f72ff'])},
- {name:'Music',symbol:'🎵',icon:createIconData('🎵',['#ff8cc6','#f4428f'])},
- {name:'Photos',symbol:'🌸',icon:createIconData('🌸',['#ffbf75','#ff6075'])},
- {name:'Settings',symbol:'⚙️',icon:createIconData('⚙️',['#cdd3dc','#8d95a3'])}
-]
-
-const dock=document.getElementById('dock')
-const desktop=document.getElementById('desktop')
-
-apps.forEach(app=>{
- const item=document.createElement('div')
- item.className='dock-item'
- const img=document.createElement('img')
- img.src=app.icon
- img.alt=app.name
- img.addEventListener('error',()=>{img.src=createIconData(app.symbol,['#94a3b8','#64748b'])})
- item.appendChild(img)
- item.addEventListener('click',()=>openApp(app.name,item))
- dock.appendChild(item)
-})
-
-dock.addEventListener('mousemove',e=>{
- document.querySelectorAll('.dock-item').forEach(item=>{
-  const rect=item.getBoundingClientRect()
-  const center=rect.left+rect.width/2
-  const distance=Math.abs(e.clientX-center)
-  const influence=Math.max(0,1-distance/120)
-  const scale=(1+(varDockMaxScale()-1)*Math.pow(influence,1.35)).toFixed(3)
-  item.style.setProperty('--scale',scale)
+diff --git a/index.html b/index.html
+index 56f7ecf7cc38bb57d40bb45ea10f84fb895dff5b..b67fc65834b1a9fc1027b53fe8c7e49ed947dda4 100644
+--- a/index.html
++++ b/index.html
+@@ -1,41 +1,42 @@
+ <!DOCTYPE html>
+ <html lang="en">
+ <head>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <title>macOS Tahoe Web Architecture</title>
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+ 
+ <style>
+ *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;-webkit-user-select:none;user-select:none}
+ html,body{width:100%;height:100%;overflow:hidden}
+ 
+ :root{
+   --dock-height:70px;
+   --blur:blur(40px);
+   --animation:cubic-bezier(.22,1,.36,1);
++  --dock-max-scale:2.15;
+ }
+ 
+ /* SEA ONLY BACKGROUND */
+ body{
+   background:url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=2200') center/cover no-repeat fixed;
+ }
+ 
+ #desktop{position:relative;width:100%;height:100%}
+ 
+ /* ===== MENUBAR ===== */
+ #menubar{
+   position:absolute;top:0;left:0;
+   width:100%;height:32px;
+   background:rgba(255,255,255,.35);
+   backdrop-filter:var(--blur);
+   display:flex;align-items:center;justify-content:space-between;
+   padding:0 16px;font-size:13px;z-index:9999
+ }
+ #menu-left span{margin-right:18px;cursor:pointer}
+ #menu-right{display:flex;gap:14px}
+ .menu-item{position:relative}
+ .dropdown{
+   position:absolute;top:28px;left:0;
+   background:rgba(255,255,255,.85);
+   backdrop-filter:blur(20px);
+@@ -55,128 +56,161 @@ body{
+   backdrop-filter:var(--blur);
+   border-radius:16px;
+   box-shadow:0 40px 80px rgba(0,0,0,.45);
+   display:flex;flex-direction:column;overflow:hidden;
+   transform:scale(.92);opacity:0;
+   transition:all .25s var(--animation);
+ }
+ .window.open{transform:scale(1);opacity:1}
+ .window.closing{transform:scale(.85);opacity:0}
+ .window.maximized{border-radius:0;width:100%!important;height:calc(100% - 32px)!important;left:0!important;top:32px!important}
+ 
+ .titlebar{height:36px;display:flex;align-items:center;padding:0 12px;background:rgba(255,255,255,.6);cursor:grab}
+ .controls{display:flex;gap:8px;margin-right:12px}
+ .control{width:12px;height:12px;border-radius:50%;cursor:pointer}
+ .close{background:#ff5f57}.min{background:#febc2e}.max{background:#28c840}
+ .window-content{flex:1;padding:16px;overflow:auto;-webkit-user-select:text;user-select:text}
+ 
+ /* ===== DOCK ===== */
+ #dock{
+   position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+   height:var(--dock-height);padding:10px 22px;
+   background:rgba(255,255,255,.35);
+   backdrop-filter:var(--blur);
+   border-radius:22px;display:flex;align-items:flex-end;gap:18px
+ }
+-.dock-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;transition:transform .18s var(--animation)}
+-.dock-item:hover{transform:translateY(-6px) scale(1.08)}
++.dock-item{position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;--scale:1;transform:translateY(calc((var(--scale) - 1) * -10px)) scale(var(--scale));transition:transform .15s var(--animation)}
+ .dock-item.running::after{
+   content:'';position:absolute;bottom:4px;width:6px;height:6px;border-radius:50%;background:#000;opacity:.6
+ }
+-.dock-item img{width:38px;height:38px;pointer-events:none}
++.app-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,var(--c1),var(--c2));box-shadow:inset 0 1px 1px rgba(255,255,255,.45),0 8px 16px rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.5);pointer-events:none}
++.app-glyph{font-size:18px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
++
++.welcome-card{max-width:580px;background:rgba(255,255,255,.7);border-radius:20px;padding:22px;box-shadow:0 18px 40px rgba(0,0,0,.15)}
++.welcome-grid{margin-top:16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
++.welcome-pill{padding:14px;border-radius:14px;background:rgba(255,255,255,.8);font-weight:500}
+ 
+ /* ===== MISSION CONTROL ===== */
+ #mission{
+   position:absolute;inset:0;background:rgba(0,0,0,.4);
+   backdrop-filter:blur(20px);
+   display:none;align-items:center;justify-content:center;flex-wrap:wrap;gap:40px;z-index:9998
+ }
+ #mission.active{display:flex}
+ .mini{width:320px;height:220px;background:rgba(255,255,255,.3);border-radius:14px;backdrop-filter:blur(20px)}
+ 
+ </style>
+ </head>
+ <body>
+ 
+ <div id="desktop"></div>
+ <div id="mission"></div>
+ 
+ <div id="menubar">
+   <div id="menu-left">
+     <span class="menu-item">
+       <div class="dropdown">
+         <div onclick="location.reload()">Restart</div>
+         <div onclick="alert('macOS Tahoe Web')">About</div>
+       </div>
+     </span>
+     <span id="activeApp">Finder</span>
+     <span id="appMenu"></span>
+   </div>
+   <div id="menu-right">
+     <span onclick="toggleMission()">Mission</span>
+     <span id="clock"></span>
+   </div>
+ </div>
+ 
+ <div id="dock"></div>
+ 
+ <script>
+ 
+ /* ================= SYSTEM CORE ================= */
+ class WindowManager{
+  constructor(){this.z=1}
+  focus(win){win.style.zIndex=this.z++}
+ }
+ 
+ const WM=new WindowManager()
+ 
+ /* ================= APPS ================= */
+ const apps=[
+- {name:'Finder',icon:'https://img.icons8.com/color/96/finder.png'},
+- {name:'Terminal',icon:'https://img.icons8.com/color/96/console.png'},
+- {name:'Notes',icon:'https://img.icons8.com/color/96/apple-notes.png'},
+- {name:'Calculator',icon:'https://img.icons8.com/color/96/calculator--v1.png'},
+- {name:'Safari',icon:'https://img.icons8.com/color/96/safari--v1.png'},
+- {name:'Mail',icon:'https://img.icons8.com/color/96/apple-mail.png'},
+- {name:'Music',icon:'https://img.icons8.com/color/96/apple-music.png'},
+- {name:'Photos',icon:'https://img.icons8.com/color/96/apple-photos.png'},
+- {name:'Settings',icon:'https://img.icons8.com/color/96/settings--v1.png'}
++ {name:'Finder',symbol:'🧭',colors:['#87d5ff','#2f7dff']},
++ {name:'Terminal',symbol:'>_',colors:['#626d7c','#151922']},
++ {name:'Notes',symbol:'📝',colors:['#ffe27a','#f5bf2a']},
++ {name:'Calculator',symbol:'＋',colors:['#ffb26a','#ff6f54']},
++ {name:'Safari',symbol:'🧭',colors:['#77e9ff','#1699ff']},
++ {name:'Mail',symbol:'✉',colors:['#86c2ff','#3f75ff']},
++ {name:'Music',symbol:'♪',colors:['#ff98cc','#f74c96']},
++ {name:'Photos',symbol:'✿',colors:['#ffc77d','#ff6f76']},
++ {name:'Settings',symbol:'⚙',colors:['#d4dbe5','#8f97a6']}
+ ]
+ 
++function createAppIcon(app){
++ const icon=document.createElement('div')
++ icon.className='app-icon'
++ icon.style.setProperty('--c1',app.colors[0])
++ icon.style.setProperty('--c2',app.colors[1])
++ const glyph=document.createElement('span')
++ glyph.className='app-glyph'
++ glyph.textContent=app.symbol
++ icon.appendChild(glyph)
++ return icon
++}
++
+ const dock=document.getElementById('dock')
+ const desktop=document.getElementById('desktop')
+ 
+ apps.forEach(app=>{
+  const item=document.createElement('div')
+  item.className='dock-item'
+- const img=document.createElement('img')
+- img.src=app.icon
+- item.appendChild(img)
++ item.appendChild(createAppIcon(app))
+  item.addEventListener('click',()=>openApp(app.name,item))
+  dock.appendChild(item)
  })
-})
-
-dock.addEventListener('mouseleave',()=>{
- document.querySelectorAll('.dock-item').forEach(item=>item.style.setProperty('--scale','1'))
-})
-
-function varDockMaxScale(){
- return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock-max-scale'))||2
-}
-
-/* ================= WINDOW CREATION ================= */
-function openApp(name,dockItem){
- const win=document.createElement('div')
- win.className='window'
- win.style.top=100+Math.random()*100+'px'
- win.style.left=160+Math.random()*180+'px'
- WM.focus(win)
-
- if(dockItem)dockItem.classList.add('running')
-
- const bar=document.createElement('div')
- bar.className='titlebar'
-
- const controls=document.createElement('div')
- controls.className='controls'
-
- const close=createControl('close',()=>closeWindow(win,dockItem))
- const min=createControl('min',()=>minimizeBezier(win,dockItem))
- const max=createControl('max',()=>win.classList.toggle('maximized'))
-
- controls.append(close,min,max)
- bar.appendChild(controls)
-
- const content=document.createElement('div')
- content.className='window-content'
-@@ -243,53 +272,59 @@ function makeDraggable(win,handle){
- let ox=0,oy=0,drag=false
-
- handle.addEventListener('mousedown',e=>{
-  if(e.target.classList.contains('control'))return
-  drag=true
-  ox=e.clientX-win.offsetLeft
-  oy=e.clientY-win.offsetTop
- })
-
- document.addEventListener('mousemove',e=>{
-  if(!drag)return
-  win.style.left=e.clientX-ox+'px'
-  win.style.top=e.clientY-oy+'px'
- })
-
- document.addEventListener('mouseup',()=>drag=false)
-}
-
-/* ================= MENUS ================= */
-function injectMenu(app){
- document.getElementById('appMenu').innerText='File  Edit  View  Window  Help'
-}
-
-/* ================= APP UI ================= */
-function generateAppUI(name){
- if(name==='Finder')return `<div class="welcome-card"><h2>Welcome to macOS Tahoe</h2><p style="margin-top:8px;line-height:1.5">This environment now boots with local-first app icons, spring-style dock magnification physics, Mission Control previews, and a first-run welcome workspace inspired by macOS behavior.</p><div class="welcome-grid"><div class="welcome-pill">✨ Real-time dock physics</div><div class="welcome-pill">🧱 Fluid layered windows</div><div class="welcome-pill">🚀 Fast local icons</div><div class="welcome-pill">🗂️ Welcome workflow</div></div></div>`
- if(name==='Safari')return `<h2>Safari</h2><input style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc" placeholder="Search or enter website name">`
- if(name==='Mail')return `<h2>Mail</h2><div style="padding:10px;background:#fff;border-radius:10px;box-shadow:0 10px 20px rgba(0,0,0,.1)">Inbox (0)</div>`
- if(name==='Music')return `<h2>Music</h2><div style="height:200px;background:linear-gradient(135deg,#ff7eb3,#ff758c);border-radius:14px"></div>`
- if(name==='Photos')return `<h2>Photos</h2><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"><div style="height:80px;background:#ddd;border-radius:8px"></div><div style="height:80px;background:#ccc;border-radius:8px"></div><div style="height:80px;background:#bbb;border-radius:8px"></div></div>`
- if(name==='Settings')return `<h2>System Settings</h2><button style="padding:8px 14px;border-radius:8px;border:none;background:#007aff;color:#fff">General</button>`
- return `<h2>${name}</h2>`
-}
-
-/* ================= MISSION CONTROL ================= */
-function toggleMission(){
- const mission=document.getElementById('mission')
- mission.classList.toggle('active')
- mission.innerHTML=''
- document.querySelectorAll('.window').forEach(()=>{
-  const mini=document.createElement('div')
-  mini.className='mini'
-  mission.appendChild(mini)
- })
-}
-
-/* ================= CLOCK ================= */
-setInterval(()=>{
- document.getElementById('clock').innerText=new Date().toLocaleTimeString()
-},1000)
-
-window.addEventListener('load',()=>{
- const finderDockItem=[...document.querySelectorAll('.dock-item')][0]
- openApp('Finder',finderDockItem)
-})
-
-</script>
-</body>
-</html>
+ 
++dock.addEventListener('mousemove',e=>{
++ document.querySelectorAll('.dock-item').forEach(item=>{
++  const rect=item.getBoundingClientRect()
++  const center=rect.left+rect.width/2
++  const distance=Math.abs(e.clientX-center)
++  const influence=Math.max(0,1-distance/120)
++  const scale=(1+(varDockMaxScale()-1)*Math.pow(influence,1.35)).toFixed(3)
++  item.style.setProperty('--scale',scale)
++ })
++})
++
++dock.addEventListener('mouseleave',()=>{
++ document.querySelectorAll('.dock-item').forEach(item=>item.style.setProperty('--scale','1'))
++})
++
++function varDockMaxScale(){
++ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dock-max-scale'))||2
++}
++
+ /* ================= WINDOW CREATION ================= */
+ function openApp(name,dockItem){
+  const win=document.createElement('div')
+  win.className='window'
+  win.style.top=100+Math.random()*100+'px'
+  win.style.left=160+Math.random()*180+'px'
+  WM.focus(win)
+ 
+  if(dockItem)dockItem.classList.add('running')
+ 
+  const bar=document.createElement('div')
+  bar.className='titlebar'
+ 
+  const controls=document.createElement('div')
+  controls.className='controls'
+ 
+  const close=createControl('close',()=>closeWindow(win,dockItem))
+  const min=createControl('min',()=>minimizeBezier(win,dockItem))
+  const max=createControl('max',()=>win.classList.toggle('maximized'))
+ 
+  controls.append(close,min,max)
+  bar.appendChild(controls)
+ 
+  const content=document.createElement('div')
+  content.className='window-content'
+@@ -243,53 +277,59 @@ function makeDraggable(win,handle){
+  let ox=0,oy=0,drag=false
+ 
+  handle.addEventListener('mousedown',e=>{
+   if(e.target.classList.contains('control'))return
+   drag=true
+   ox=e.clientX-win.offsetLeft
+   oy=e.clientY-win.offsetTop
+  })
+ 
+  document.addEventListener('mousemove',e=>{
+   if(!drag)return
+   win.style.left=e.clientX-ox+'px'
+   win.style.top=e.clientY-oy+'px'
+  })
+ 
+  document.addEventListener('mouseup',()=>drag=false)
+ }
+ 
+ /* ================= MENUS ================= */
+ function injectMenu(app){
+  document.getElementById('appMenu').innerText='File  Edit  View  Window  Help'
+ }
+ 
+ /* ================= APP UI ================= */
+ function generateAppUI(name){
++ if(name==='Finder')return `<div class="welcome-card"><h2>Welcome to macOS Tahoe</h2><p style="margin-top:8px;line-height:1.5">This environment now boots with local-first app icons, spring-style dock magnification physics, Mission Control previews, and a first-run welcome workspace inspired by macOS behavior.</p><div class="welcome-grid"><div class="welcome-pill">✨ Real-time dock physics</div><div class="welcome-pill">🧱 Fluid layered windows</div><div class="welcome-pill">🚀 Fast local icons</div><div class="welcome-pill">🗂️ Welcome workflow</div></div></div>`
+  if(name==='Safari')return `<h2>Safari</h2><input style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc" placeholder="Search or enter website name">`
+  if(name==='Mail')return `<h2>Mail</h2><div style="padding:10px;background:#fff;border-radius:10px;box-shadow:0 10px 20px rgba(0,0,0,.1)">Inbox (0)</div>`
+  if(name==='Music')return `<h2>Music</h2><div style="height:200px;background:linear-gradient(135deg,#ff7eb3,#ff758c);border-radius:14px"></div>`
+  if(name==='Photos')return `<h2>Photos</h2><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px"><div style="height:80px;background:#ddd;border-radius:8px"></div><div style="height:80px;background:#ccc;border-radius:8px"></div><div style="height:80px;background:#bbb;border-radius:8px"></div></div>`
+  if(name==='Settings')return `<h2>System Settings</h2><button style="padding:8px 14px;border-radius:8px;border:none;background:#007aff;color:#fff">General</button>`
+  return `<h2>${name}</h2>`
+ }
+ 
+ /* ================= MISSION CONTROL ================= */
+ function toggleMission(){
+  const mission=document.getElementById('mission')
+  mission.classList.toggle('active')
+  mission.innerHTML=''
+  document.querySelectorAll('.window').forEach(()=>{
+   const mini=document.createElement('div')
+   mini.className='mini'
+   mission.appendChild(mini)
+  })
+ }
+ 
+ /* ================= CLOCK ================= */
+ setInterval(()=>{
+  document.getElementById('clock').innerText=new Date().toLocaleTimeString()
+ },1000)
+ 
++window.addEventListener('load',()=>{
++ const finderDockItem=[...document.querySelectorAll('.dock-item')][0]
++ openApp('Finder',finderDockItem)
++})
++
+ </script>
+ </body>
+ </html>

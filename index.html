@@ -15,19 +15,33 @@ body{background:linear-gradient(160deg,#5b7ca2,#1e2d44) center/cover no-repeat f
 .liquid-glass{background:linear-gradient(130deg,rgba(255,255,255,.45),rgba(255,255,255,.2));border:1px solid rgba(255,255,255,.42);box-shadow:inset 0 1px 1px rgba(255,255,255,.75),0 20px 40px rgba(0,0,0,.18);backdrop-filter:var(--blur) saturate(1.3)}
 
 #menubar{position:absolute;inset:10px 12px auto 12px;height:32px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;z-index:9999;border-radius:12px}
-#menu-left,#menu-right{display:flex;align-items:center;gap:14px;font-size:13px}
+#menu-left,#menu-right{display:flex;align-items:center;gap:12px;font-size:13px}
 #menu-left span,#menu-right span{cursor:pointer;opacity:.95}
 #menu-left span:hover,#menu-right span:hover{opacity:1}
 #appMenu{font-weight:500;letter-spacing:.1px}
 #appleMenuBtn{font-weight:700}
 .menu-wrap{position:relative}
-.apple-dropdown{position:absolute;top:30px;left:0;width:260px;border-radius:12px;padding:8px;display:none;z-index:12000}
+.apple-dropdown{position:absolute;top:30px;left:0;width:260px;border-radius:12px;padding:8px;display:none;z-index:12000;background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.55));border:1px solid rgba(255,255,255,.58)}
 .apple-dropdown.active{display:block}
 .menu-item{padding:7px 10px;border-radius:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
 .menu-item:hover{background:rgba(38,120,255,.22)}
 .menu-sep{height:1px;background:rgba(0,0,0,.14);margin:6px 0}
 .submenu{position:absolute;left:258px;top:112px;width:220px;display:none;padding:8px;border-radius:12px;max-height:220px;overflow:auto}
 .submenu.active{display:block}
+
+.status-pill{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:9px;background:rgba(255,255,255,.28);border:1px solid rgba(255,255,255,.3);font-size:12px}
+#controlCenterBtn{padding:4px 10px;border-radius:10px;background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.42)}
+#controlCenterBtn.active{background:rgba(95,154,255,.36)}
+#controlCenter{position:absolute;top:44px;right:0;width:368px;padding:12px;border-radius:18px;display:none;z-index:12500;background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.56));border:1px solid rgba(255,255,255,.58)}
+#controlCenter.active{display:block}
+.cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cc-card{padding:10px;border-radius:14px;background:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.5);min-height:92px}
+.cc-title{font-size:12px;opacity:.72;margin-bottom:8px}
+.cc-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:13px}
+.cc-btn{padding:4px 8px;border-radius:8px;border:1px solid rgba(0,0,0,.15);background:rgba(255,255,255,.65);cursor:pointer;font-size:12px}
+.cc-btn.on{background:rgba(47,125,255,.9);color:#fff;border-color:rgba(47,125,255,.95)}
+.cc-wide{grid-column:1 / -1}
+.cc-slider{width:100%}
 
 .window{position:absolute;width:900px;height:560px;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transform:scale(.93);opacity:0;transition:all .22s var(--anim)}
 .window.open{transform:scale(1);opacity:1}
@@ -100,7 +114,46 @@ input,button{font:inherit}
   </div>
   <div id="menu-right">
     <span id="missionBtn">Mission Control</span>
-    <span id="clock"></span>
+    <span id="finderState" class="status-pill">Finder</span>
+    <span id="networkState" class="status-pill">📶 Online</span>
+    <span id="batteryState" class="status-pill">🔋 100%</span>
+    <span id="dateState" class="status-pill"></span>
+    <span id="clock" class="status-pill"></span>
+    <span id="controlCenterBtn">Control Centre</span>
+  </div>
+</div>
+
+<div id="controlCenter" class="liquid-glass">
+  <div class="cc-grid">
+    <div class="cc-card">
+      <div class="cc-title">Connectivity</div>
+      <div class="cc-row"><span>Wi-Fi</span><button class="cc-btn" id="wifiToggle">On</button></div>
+      <div class="cc-row"><span>Bluetooth</span><button class="cc-btn" id="bluetoothToggle">On</button></div>
+      <div class="cc-row"><span>AirDrop</span><button class="cc-btn" id="airdropToggle">On</button></div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-title">Focus</div>
+      <div class="cc-row"><span>Do Not Disturb</span><button class="cc-btn" id="focusToggle">Off</button></div>
+      <div style="font-size:12px;opacity:.7">Silences alerts and notifications.</div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-title">Screen Mirroring</div>
+      <div class="cc-row"><span>MacBook Display</span><button class="cc-btn" id="mirrorToggle">Off</button></div>
+      <div style="font-size:12px;opacity:.7">Mirror to Apple TV or AirPlay receiver.</div>
+    </div>
+    <div class="cc-card">
+      <div class="cc-title">Storage</div>
+      <div style="font-size:12px;margin-bottom:8px">Used 291 GB of 512 GB</div>
+      <button class="cc-btn" id="storageBtn">Open Settings</button>
+    </div>
+    <div class="cc-card cc-wide">
+      <div class="cc-title">Display Brightness</div>
+      <input id="brightnessSlider" class="cc-slider" type="range" min="40" max="140" value="100"/>
+    </div>
+    <div class="cc-card cc-wide">
+      <div class="cc-title">Sound</div>
+      <input id="soundSlider" class="cc-slider" type="range" min="0" max="100" value="62"/>
+    </div>
   </div>
 </div>
 
@@ -118,6 +171,10 @@ const recentSubmenu=document.getElementById('recentSubmenu')
 const openWindows=[]
 const recentItems=[]
 let activeWindowRef=null
+const controlCenter=document.getElementById('controlCenter')
+const controlCenterBtn=document.getElementById('controlCenterBtn')
+const controlState={wifi:true,bluetooth:true,airdrop:true,focus:false,mirror:false,brightness:100,sound:62,battery:100}
+let isControlCenterOpen=false
 
 const menus={Finder:'File Edit View Go Window Help',Safari:'File Edit View History Bookmarks Develop Window Help',Discord:'File Edit View Window Help',Spotify:'Spotify File Edit View Playback Window Help',Music:'File Edit Song Playback Controls Window Help',Terminal:'Shell Edit View Window Help',Notes:'File Edit View Note Format Window Help',Mail:'File Edit View Mailbox Message Format Window Help',Settings:'File Edit View Window Help','App Store':'Store Edit View Window Help'}
 
@@ -196,7 +253,7 @@ function createDesktopIcons(){
   })
 }
 
-function setMenu(name){document.getElementById('activeApp').textContent=name;document.getElementById('appMenu').textContent=menus[name]||'File Edit View Window Help'}
+function setMenu(name){document.getElementById('activeApp').textContent=name;document.getElementById('appMenu').textContent=menus[name]||'File Edit View Window Help';document.getElementById('finderState').textContent=name}
 
 function openApp(name,dockItem){
   const win=document.createElement('div')
@@ -287,10 +344,85 @@ function setupAppleMenu(){
   document.getElementById('powerOnBtn').onclick=()=>document.getElementById('shutdownOverlay').classList.remove('active')
 }
 
-setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),1000)
+
+function applyDisplayAndSound(){
+  const dim=controlState.brightness/100
+  desktop.style.filter=`brightness(${dim})`
+  const soundLabel=controlState.sound===0?'Muted':`${controlState.sound}%`
+  document.getElementById('soundSlider').title=soundLabel
+}
+
+function updateNetworkState(){
+  const online=navigator.onLine && controlState.wifi
+  document.getElementById('networkState').textContent=online?'📶 Online':'⚠️ Offline'
+}
+
+function updateBatteryState(){
+  const icon=controlState.battery>70?'🔋':controlState.battery>30?'🪫':'🔴'
+  document.getElementById('batteryState').textContent=`${icon} ${controlState.battery}%`
+}
+
+function renderControlCenter(){
+  const map=[['wifiToggle','wifi','Wi-Fi'],['bluetoothToggle','bluetooth','Bluetooth'],['airdropToggle','airdrop','AirDrop'],['focusToggle','focus','Focus'],['mirrorToggle','mirror','Mirror']]
+  map.forEach(([id,key,label])=>{
+    const el=document.getElementById(id)
+    const on=controlState[key]
+    el.classList.toggle('on',on)
+    el.textContent=on?'On':'Off'
+    el.setAttribute('aria-label',`${label} ${on?'On':'Off'}`)
+  })
+  updateNetworkState()
+  applyDisplayAndSound()
+}
+
+function toggleControl(key){controlState[key]=!controlState[key];renderControlCenter()}
+
+function openControlCenter(){
+  isControlCenterOpen=true
+  controlCenter.classList.add('active')
+  controlCenterBtn.classList.add('active')
+}
+
+function closeControlCenter(){
+  isControlCenterOpen=false
+  controlCenter.classList.remove('active')
+  controlCenterBtn.classList.remove('active')
+}
+
+function setupControlCenter(){
+  controlCenterBtn.onclick=(e)=>{
+    e.stopPropagation()
+    if(isControlCenterOpen) closeControlCenter()
+    else openControlCenter()
+  }
+  controlCenter.addEventListener('click',e=>e.stopPropagation())
+  document.getElementById('wifiToggle').onclick=()=>toggleControl('wifi')
+  document.getElementById('bluetoothToggle').onclick=()=>toggleControl('bluetooth')
+  document.getElementById('airdropToggle').onclick=()=>toggleControl('airdrop')
+  document.getElementById('focusToggle').onclick=()=>toggleControl('focus')
+  document.getElementById('mirrorToggle').onclick=()=>toggleControl('mirror')
+  document.getElementById('storageBtn').onclick=()=>{openSystemSettings();closeControlCenter()}
+  document.getElementById('brightnessSlider').oninput=(e)=>{controlState.brightness=Number(e.target.value);applyDisplayAndSound()}
+  document.getElementById('soundSlider').oninput=(e)=>{controlState.sound=Number(e.target.value);applyDisplayAndSound()}
+  document.addEventListener('click',()=>{if(isControlCenterOpen)closeControlCenter()})
+  document.addEventListener('keydown',e=>{if(e.key==='Escape' && isControlCenterOpen)closeControlCenter()})
+  window.addEventListener('online',updateNetworkState)
+  window.addEventListener('offline',updateNetworkState)
+  setInterval(()=>{if(controlState.battery>3)controlState.battery-=1;updateBatteryState()},60000)
+  renderControlCenter()
+  updateBatteryState()
+}
+
+function updateDateTime(){
+  const now=new Date()
+  document.getElementById('clock').textContent=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+  document.getElementById('dateState').textContent=now.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'})
+}
+
+setInterval(updateDateTime,1000)
 document.getElementById('missionBtn').onclick=toggleMission
 
-applyTahoeBackground();createDock();createDesktopIcons();setupDockPhysics();setupAmbientInteractivity();setupAppleMenu();
+applyTahoeBackground();createDock();createDesktopIcons();setupDockPhysics();setupAmbientInteractivity();setupAppleMenu();setupControlCenter();updateDateTime();
 window.addEventListener('load',()=>openApp('Finder',[...dock.children][0]))
 </script>
 </body>
